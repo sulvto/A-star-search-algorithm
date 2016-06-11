@@ -1,4 +1,3 @@
-console.log('Hello World');
 var HEIGHT = 40;
 var WIDTH = 60;
 var SIDE = 12;
@@ -29,12 +28,11 @@ function initMap() {
     mapElement.appendChild(fragment);
     mapElement.style.height = HEIGHT * SIDE - 1 + 'px';
     mapElement.style.width = WIDTH * SIDE - 1 + 'px';
-    var mapList = mapElement.children;
+    mapList = mapElement.children;
 }
 
 function addEventListener() {
     mapElement.addEventListener('contextmenu', function (e) {
-        console.log('contextmenu');
         var target = e.target;
         if (target.tagName === 'SPAN') {
             map[target.x][target.y].walkable = true;
@@ -51,7 +49,7 @@ function addEventListener() {
                 }
                 target.className = 'to';
                 to = target;
-                drawPath();
+                start();
             }
 
         }
@@ -61,7 +59,6 @@ function addEventListener() {
         var target = e.target;
         if (dragging && e.button === 0 && target.tagName === 'SPAN' && !target.className) {
             target.className = 'obstacle';
-            console.log(target);
             map[target.x][target.y].walkable = false;
         }
     }, false);
@@ -77,41 +74,38 @@ function addEventListener() {
     }, false);
 }
 
-function drawPath() {
+function drawSteps(path) {
+    if (path.length > 0) {
+        var step = path[0];
+        mapList[WIDTH * step.y + step.x].className = 'step';
+        setTimeout(function () {
+            path.shift();
+            drawSteps(path);
+        }, 10);
+    }
+}
+
+function start() {
     var steps = mapElement.querySelectorAll('span.step');
-    console.log(steps);
-    if (steps.length > 0) {
-        steps.forEach(function (step) {
-            step.className = '';
-        });
+    for (var i = 0; i < steps.length; i++) {
+        steps[i].className = '';
     }
 
-    var from = {x: from.x, y: from.y};
-    var to = {x: to.x, y: to.y};
-
-    var path = aStarSearch(from, to, map);
+    var path = aStarSearch({x: from.x, y: from.y}, {x: to.x, y: to.y}, map);
     if (path) {
         drawSteps(path);
     }
 
 }
 
-function drawSteps(path) {
-    if (path.length > 0) {
-        var step = path[0];
-        mapList[WIDTH * step.y + step.x].className = 'step';
-        setTimeout(function () {
-            drawSteps(path.splice(0, 1));
-        }, 800);
-    }
-}
-
+// A star search algorithm
+// https://en.wikipedia.org/wiki/A*_search_algorithm
 function aStarSearch(from, to, map) {
     var ORTHOGONAL = 10;
     var DIAGONAL = 14;
 
-    var height = map.length;
-    var width = map[0].length;
+    var width = map.length;
+    var height = map[0].length;
 
     var openList = [];
     var closedList = [];
@@ -145,12 +139,9 @@ function aStarSearch(from, to, map) {
     //  LEFT     parent     RIGHT
     //  DOWNLEFT  DOWN  DOWNRIGHT
 
-    // Math.abs(x) 函数返回指定数字“x“ 的绝对值
-
-    // F = G + H
-
-    // * G = 从起点A，沿着产生的路径，移动到网格上指定方格的移动耗费。
-    // * H = 从网格上那个方格移动到终点B的预估移动耗费
+    // Math.abs(x) 函数返回指定数字 x 的绝对值。
+    // Math.sqrt(x) 方法可返回 x 的平方根。
+    // Math.pow(x,y) 方法可返回 x 的 y 次幂的值。
 
     function getSurroundNode(parent) {
         var surroundList = [];
@@ -162,27 +153,29 @@ function aStarSearch(from, to, map) {
         if (!parent.g) {
             parent.g = 0;
         }
+
         // LEFT
         if (parent.x > 0) {
             var node = map[parent.x - 1][parent.y];
-            if (node.walkable && !isClosed(node)) {
+            if (node.walkable && !isClosed(node) && !isOpen(node)) {
                 node.parent = parent;
                 left = node;
                 node.g = parent.g + ORTHOGONAL;
-                var h = ORTHOGONAL * Math.abs(node.x - to.x) + Math.abs(node.y - to.y);
+                var h = Math.sqrt(Math.pow(Math.abs(node.x - to.x), 2) + Math.pow(Math.abs(node.y - to.y), 2));
+                // F = H + G
                 node.f = h + node.g;
                 surroundList.push(node);
             }
         }
 
         // RIGHT
-        if (parent.x <= width) {
+        if (parent.x < width - 1) {
             var node = map[parent.x + 1][parent.y];
-            if (node.walkable && !isClosed(node)) {
+            if (node.walkable && !isClosed(node) && !isOpen(node)) {
                 node.parent = parent;
                 right = node;
                 node.g = parent.g + ORTHOGONAL;
-                var h = ORTHOGONAL * Math.abs(node.x - to.x) + Math.abs(node.y - to.y);
+                var h = Math.sqrt(Math.pow(Math.abs(node.x - to.x), 2) + Math.pow(Math.abs(node.y - to.y), 2));
                 node.f = h + node.g;
                 surroundList.push(node);
             }
@@ -191,23 +184,23 @@ function aStarSearch(from, to, map) {
         // UP
         if (parent.y > 0) {
             var node = map[parent.x][parent.y - 1];
-            if (node.walkable && !isClosed(node)) {
+            if (node.walkable && !isClosed(node) && !isOpen(node)) {
                 node.parent = parent;
                 up = node;
                 node.g = parent.g + ORTHOGONAL;
-                var h = ORTHOGONAL * Math.abs(node.x - to.x) + Math.abs(node.y - to.y);
+                var h = Math.sqrt(Math.pow(Math.abs(node.x - to.x), 2) + Math.pow(Math.abs(node.y - to.y), 2));
                 node.f = h + node.g;
                 surroundList.push(node);
             }
         }
         // DOWN
-        if (parent.y <= height) {
+        if (parent.y < height - 1) {
             var node = map[parent.x][parent.y + 1];
-            if (node.walkable && !isClosed(node)) {
+            if (node.walkable && !isClosed(node) && !isOpen(node)) {
                 node.parent = parent;
                 down = node;
                 node.g = parent.g + ORTHOGONAL;
-                var h = ORTHOGONAL * Math.abs(node.x - to.x) + Math.abs(node.y - to.y);
+                var h = Math.sqrt(Math.pow(Math.abs(node.x - to.x), 2) + Math.pow(Math.abs(node.y - to.y), 2));
                 node.f = h + node.g;
                 surroundList.push(node);
             }
@@ -215,46 +208,46 @@ function aStarSearch(from, to, map) {
         // UPLEFT
         if ((up || left ) && parent.x > 0 && parent.y > 0) {
             var node = map[parent.x - 1][parent.y - 1];
-            if (node.walkable && !isClosed(node)) {
+            if (node.walkable && !isClosed(node) && !isOpen(node)) {
                 node.parent = parent;
                 node.g = parent.g + DIAGONAL;
-                var h = ORTHOGONAL * Math.abs(node.x - to.x) + Math.abs(node.y - to.y);
+                var h = Math.sqrt(Math.pow(Math.abs(node.x - to.x), 2) + Math.pow(Math.abs(node.y - to.y), 2));
                 node.f = h + node.g;
                 surroundList.push(node);
             }
         }
 
         // DOWNLEFT
-        if ((down || left) && parent.x > 0 && parent.y <= height) {
+        if ((down || left) && parent.x > 0 && parent.y < height - 1) {
             var node = map[parent.x - 1][parent.y + 1];
-            if (node.walkable && !isClosed(node)) {
+            if (node.walkable && !isClosed(node) && !isOpen(node)) {
                 node.parent = parent;
                 node.g = parent.g + DIAGONAL;
-                var h = ORTHOGONAL * Math.abs(node.x - to.x) + Math.abs(node.y - to.y);
+                var h = Math.sqrt(Math.pow(Math.abs(node.x - to.x), 2) + Math.pow(Math.abs(node.y - to.y), 2));
                 node.f = h + node.g;
                 surroundList.push(node);
             }
         }
 
         // UPRIGHT
-        if ((up || right) && parent.x <= width && parent.y > 0) {
+        if ((up || right) && parent.x < width - 1 && parent.y > 0) {
             var node = map[parent.x + 1][parent.y - 1];
-            if (node.walkable && !isClosed(node)) {
+            if (node.walkable && !isClosed(node) && !isOpen(node)) {
                 node.parent = parent;
                 node.g = parent.g + DIAGONAL;
-                var h = ORTHOGONAL * Math.abs(node.x - to.x) + Math.abs(node.y - to.y);
+                var h = Math.sqrt(Math.pow(Math.abs(node.x - to.x), 2) + Math.pow(Math.abs(node.y - to.y), 2));
                 node.f = h + node.g;
                 surroundList.push(node);
             }
         }
 
         // DOWNRIGHT
-        if ((down || right) && parent.x <= width && parent.y <= height) {
+        if ((down || right) && parent.x < width - 1 && parent.y < height - 1) {
             var node = map[parent.x + 1][parent.y + 1];
-            if (node.walkable && !isClosed(node)) {
+            if (node.walkable && !isClosed(node) && !isOpen(node)) {
                 node.parent = parent;
                 node.g = parent.g + DIAGONAL;
-                node.h = ORTHOGONAL * Math.abs(node.x - to.x) + Math.abs(node.y - to.y);
+                node.h = Math.sqrt(Math.pow(Math.abs(node.x - to.x), 2) + Math.pow(Math.abs(node.y - to.y), 2));
                 node.f = node.h + node.g;
                 surroundList.push(node);
             }
@@ -279,11 +272,12 @@ function aStarSearch(from, to, map) {
                     path.push(parent);
                     parent = parent.parent;
                 }
-                return path.reverse();
+                path = path.reverse();
+                path.shift();
+                return path;
             }
-            if (!isOpen(item)) {
-                openList.push(item);
-            }
+
+            openList.push(item);
         }
 
         pushClosedList(current);
@@ -291,6 +285,7 @@ function aStarSearch(from, to, map) {
     return null;
 }
 
+// start
 initMap();
 addEventListener();
 
