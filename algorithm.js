@@ -1,3 +1,7 @@
+/**
+ * Created by sulvto on 16-6-11.
+ */
+
 var HEIGHT = 40;
 var WIDTH = 60;
 var SIDE = 12;
